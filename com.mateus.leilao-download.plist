@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd job: baixa a lista PB da Caixa todo dia às 07:00 (antes da rotina do
+  Cowork às 07:06), pelo link direto, para "planilhas leilao". Roda no Mac.
+
+  Instalar (uma vez), no Terminal:
+    chmod +x "/Users/mateuslima/Desktop/Claude Code Projects/leilao/baixar_csv.sh"
+    cp "/Users/mateuslima/Desktop/Claude Code Projects/leilao/com.mateus.leilao-download.plist" ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.mateus.leilao-download.plist
+  Desativar depois:
+    launchctl unload ~/Library/LaunchAgents/com.mateus.leilao-download.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mateus.leilao-download</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/baixar_csv.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>7</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardErrorPath</key>
+  <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/download.log</string>
+  <key>StandardOutPath</key>
+  <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/download.log</string>
+</dict>
+</plist>

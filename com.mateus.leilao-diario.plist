@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd job ÚNICO: roda o ciclo completo do Leilão PB todo dia às 07:00, no Mac.
+  Substitui os jobs separados de download e de WhatsApp e dispensa a tarefa do Cowork.
+
+  Instalar (uma vez), no Terminal:
+    chmod +x "/Users/mateuslima/Desktop/Claude Code Projects/leilao/rodar_diario.sh"
+    chmod +x "/Users/mateuslima/Desktop/Claude Code Projects/leilao/baixar_csv.sh"
+    cp "/Users/mateuslima/Desktop/Claude Code Projects/leilao/com.mateus.leilao-diario.plist" ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.mateus.leilao-diario.plist
+
+  (Opcional) acordar o Mac p/ rodar mesmo dormindo — acorda 06:58 todo dia:
+    sudo pmset repeat wakeorpoweron MTWRFSU 06:58:00
+
+  Desativar depois:
+    launchctl unload ~/Library/LaunchAgents/com.mateus.leilao-diario.plist
+    sudo pmset repeat cancel
+
+  Para mudar o horário: edite Hour/Minute abaixo e o 06:58 do pmset.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mateus.leilao-diario</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>"/Users/mateuslima/Desktop/Claude Code Projects/leilao/rodar_diario.sh"</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>7</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardErrorPath</key>
+  <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/launchd.log</string>
+  <key>StandardOutPath</key>
+  <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/launchd.log</string>
+</dict>
+</plist>

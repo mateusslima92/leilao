@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd job: runs the WhatsApp sender every day at 07:20 (a few minutes after
+  the Cowork daily routine writes whatsapp_outbox.json).
+
+  Install (once), in Terminal:
+    cp "/Users/mateuslima/Desktop/Claude Code Projects/leilao/com.mateus.leilao-whatsapp.plist" ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.mateus.leilao-whatsapp.plist
+  Disable later:
+    launchctl unload ~/Library/LaunchAgents/com.mateus.leilao-whatsapp.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mateus.leilao-whatsapp</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd "/Users/mateuslima/Desktop/Claude Code Projects/leilao" &amp;&amp; python3 whatsapp_sender.py &gt;&gt; whatsapp_sender.log 2&gt;&amp;1</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>7</integer>
+    <key>Minute</key><integer>20</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardErrorPath</key>
+  <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/whatsapp_sender.log</string>
+  <key>StandardOutPath</key>
+  <string>/Users/mateuslima/Desktop/Claude Code Projects/leilao/whatsapp_sender.log</string>
+</dict>
+</plist>

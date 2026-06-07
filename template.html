@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leilão de Imóveis · Paraíba — Painel de Oportunidades</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<style>
+:root{
+  --bg:#0f1419; --panel:#1a212b; --panel2:#222b38; --line:#2d3848;
+  --txt:#e6edf3; --muted:#8b98a9; --accent:#3fb950; --accent2:#2f81f7;
+  --warn:#d29922; --bad:#f85149; --chip:#2a3340;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:13px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+.app{display:grid;grid-template-columns:300px 1fr;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
+header{grid-column:1/3;display:flex;align-items:center;gap:18px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px}
+header .sub{color:var(--muted);font-size:12px}
+header .spacer{flex:1}
+.kpis{display:flex;gap:10px;flex-wrap:wrap}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;min-width:96px}
+.kpi .v{font-size:17px;font-weight:700;line-height:1.1}
+.kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.kpi.good .v{color:var(--accent)}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:12px 12px 40px}
+.fgroup{margin-bottom:15px}
+.fgroup>label.h{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.fgroup input[type=text],.fgroup input[type=number],.fgroup select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px 8px;font-size:12.5px}
+.row2{display:flex;gap:6px}
+.row2>*{flex:1;min-width:0}
+.checks{display:flex;flex-direction:column;gap:3px;max-height:150px;overflow:auto;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px}
+.checks label{display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:2px 3px;border-radius:4px}
+.checks label:hover{background:#2a3340}
+.checks input{accent-color:var(--accent)}
+.checks .cnt{margin-left:auto;color:var(--muted);font-size:11px}
+.rangeval{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:2px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{background:var(--accent2);border:none;color:#fff;padding:7px 10px;border-radius:7px;font-size:12.5px;cursor:pointer;font-weight:600;width:100%}
+.btn.sec{background:var(--chip);color:var(--txt);border:1px solid var(--line)}
+.btn:hover{filter:brightness(1.08)}
+.main{display:flex;flex-direction:column;overflow:hidden}
+.mapwrap{position:relative;height:46%;min-height:240px;border-bottom:1px solid var(--line)}
+#map{position:absolute;inset:0}
+.maphint{position:absolute;z-index:600;top:8px;left:50px;background:rgba(26,33,43,.92);border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:11.5px;color:var(--muted);pointer-events:none}
+.areaflag{position:absolute;z-index:600;top:8px;right:8px;background:var(--accent);color:#06210d;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;display:none;align-items:center;gap:8px}
+.areaflag button{background:#06210d;color:#fff;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px}
+.tablewrap{flex:1;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:12px}
+thead th{position:sticky;top:0;background:var(--panel2);border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;cursor:pointer;white-space:nowrap;user-select:none;z-index:5}
+thead th:hover{color:#fff}
+thead th .ar{color:var(--accent2);font-size:10px}
+tbody td{padding:6px 9px;border-bottom:1px solid #232c39;white-space:nowrap}
+tbody tr:hover{background:#1d2530}
+tbody tr.sel{background:#13351f}
+.scorepill{display:inline-block;min-width:34px;text-align:center;padding:2px 6px;border-radius:20px;font-weight:700;font-size:11px;color:#06210d}
+.tag{display:inline-block;padding:1px 7px;border-radius:20px;background:var(--chip);font-size:11px;color:var(--muted)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.foot{padding:6px 12px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);background:var(--panel);display:flex;gap:16px;align-items:center}
+.leaflet-popup-content{font-size:12.5px;line-height:1.5}
+.leaflet-popup-content b{color:#111}
+.disc{color:var(--accent);font-weight:700}
+.legend{position:absolute;z-index:600;bottom:10px;left:10px;background:rgba(26,33,43,.92);border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:11px}
+.legend .bar{height:8px;width:140px;border-radius:4px;background:linear-gradient(90deg,#f85149,#d29922,#3fb950);margin:4px 0}
+.legend .ends{display:flex;justify-content:space-between;color:var(--muted)}
+/* ---- alerts ---- */
+.hbtn{position:relative;background:var(--chip);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px}
+.hbtn:hover{border-color:var(--accent)}
+.hbtn .dot{background:var(--bad);color:#fff;border-radius:20px;min-width:18px;height:18px;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 5px}
+.hbtn .dot.on{display:inline-flex}
+.newbadge{display:inline-block;background:var(--bad);color:#fff;border-radius:5px;font-size:10px;font-weight:700;padding:1px 5px;letter-spacing:.4px;vertical-align:middle}
+tbody tr.isnew td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.toggles{display:flex;flex-direction:column;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px}
+.toggles label{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer}
+.toggles input{accent-color:var(--bad)}
+.modal{position:fixed;inset:0;background:rgba(5,8,12,.66);z-index:1000;display:none;align-items:stretch;justify-content:flex-end}
+.modal.open{display:flex}
+.sheet{width:560px;max-width:96vw;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;box-shadow:-12px 0 40px rgba(0,0,0,.5)}
+.sheet header{position:static;grid-column:auto;display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.sheet header h2{margin:0;font-size:16px;font-weight:650}
+.sheet .x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+.sheet .body{flex:1;overflow-y:auto;padding:14px 18px}
+.sheet .ftr{border-top:1px solid var(--line);padding:12px 18px;display:flex;gap:8px;flex-wrap:wrap}
+.sectn{margin-bottom:18px}
+.sectn h3{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 9px}
+.acard{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px}
+.acard.off{opacity:.55}
+.acard .top{display:flex;align-items:center;gap:9px}
+.acard .nm{font-weight:650;font-size:13.5px}
+.acard .cnt{margin-left:auto;font-size:11.5px;color:var(--muted);text-align:right}
+.acard .cnt b{color:var(--bad)}
+.acard .crit{color:var(--muted);font-size:11.5px;margin-top:5px;line-height:1.5}
+.acard .acts{display:flex;gap:6px;margin-top:8px}
+.mini{background:var(--chip);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:3px 9px;font-size:11.5px;cursor:pointer}
+.mini:hover{border-color:var(--accent)}
+.mini.danger:hover{border-color:var(--bad);color:var(--bad)}
+.sw{position:relative;width:34px;height:19px;flex:none}
+.sw input{display:none}
+.sw span{position:absolute;inset:0;background:#3a4656;border-radius:20px;transition:.15s}
+.sw span:before{content:"";position:absolute;width:15px;height:15px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+span{background:var(--accent)}
+.sw input:checked+span:before{transform:translateX(15px)}
+.eform{display:grid;grid-template-columns:1fr 1fr;gap:9px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:12px}
+.eform .full{grid-column:1/3}
+.eform label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.eform input,.eform select{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12.5px}
+.eform .multi{height:84px}
+.banner{background:#1d2a18;border:1px solid #2f5523;border-radius:8px;padding:9px 12px;font-size:12px;color:#c7e7bb;margin-bottom:14px}
+.oppline{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid #232c39;font-size:12.5px}
+.oppline .gp{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oppline .sc{font-weight:700;color:#06210d;border-radius:20px;padding:1px 7px;font-size:11px}
+.empty{color:var(--muted);font-size:12.5px;padding:8px 0}
+/* geocoder */
+.geobar{position:absolute;z-index:600;bottom:10px;right:10px;background:rgba(26,33,43,.95);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:11.5px;display:flex;align-items:center;gap:10px;max-width:340px}
+.geobar .pb{width:120px;height:6px;border-radius:4px;background:#2a3340;overflow:hidden}
+.geobar .pb>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.geobar button{background:var(--accent2);border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
+.geobar button.pause{background:var(--chip);border:1px solid var(--line);color:var(--txt)}
+.precdot{font-size:11px}
+.areaflag.warn{background:var(--warn);color:#241a02}
+.areaflag.warn button{background:#241a02}
+.ldot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
+.ldot.v{background:#3fb950}
+.ldot.b{background:#d29922}
+.ldot.c{background:transparent;border:1.5px solid #6b7686}
+.foot .conf{display:flex;gap:10px;align-items:center}
+.foot .conf span{display:flex;gap:4px;align-items:center}
+.muted2{color:var(--muted);font-size:12px;line-height:1.5}
+code{background:#0c1117;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>🏠 Leilão de Imóveis — Paraíba</h1>
+      <div class="sub" id="sourceline"></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="hbtn" id="openRun">⚡ Rodar workflow</button>
+    <button class="hbtn" id="openAlerts">🔔 Alertas<span class="dot" id="alertDot">0</span></button>
+    <div class="kpis" id="kpis"></div>
+  </header>
+
+  <aside>
+    <div class="fgroup">
+      <div class="toggles">
+        <label><input type="checkbox" id="onlyAlarm"> Somente imóveis que disparam alarme</label>
+        <label><input type="checkbox" id="onlyNew"> Somente novas oportunidades (não vistas)</label>
+        <label><input type="checkbox" id="onlyVerified"> Somente localização verificada (endereço real)</label>
+      </div>
+    </div>
+    <div class="fgroup">
+      <label class="h">Busca (id, endereço, bairro)</label>
+      <input type="text" id="q" placeholder="ex: centro, rua, 8444...">
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Score mínimo de oportunidade</label>
+      <input type="range" id="scoreMin" min="0" max="100" value="0" step="1">
+      <div class="rangeval"><span>≥ <b id="scoreMinV">0</b></span><span>100</span></div>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Desconto mínimo (%)</label>
+      <input type="range" id="descMin" min="0" max="80" value="0" step="1">
+      <div class="rangeval"><span>≥ <b id="descMinV">0</b>%</span><span>80%</span></div>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Preço (R$)</label>
+      <div class="row2">
+        <input type="number" id="precoMin" placeholder="mín">
+        <input type="number" id="precoMax" placeholder="máx">
+      </div>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Preço por m² (≤ R$)</label>
+      <input type="number" id="ppm2Max" placeholder="qualquer">
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Quartos (mínimo)</label>
+      <select id="quartosMin">
+        <option value="0">Qualquer</option>
+        <option value="1">1+</option><option value="2">2+</option>
+        <option value="3">3+</option><option value="4">4+</option>
+      </select>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Financiamento Caixa</label>
+      <select id="financ">
+        <option value="">Qualquer</option>
+        <option value="Sim">Aceita financiamento</option>
+        <option value="Não">Somente à vista</option>
+      </select>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Tipo de imóvel</label>
+      <div class="checks" id="fTipo"></div>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Modalidade de venda</label>
+      <div class="checks" id="fModal"></div>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Cidade</label>
+      <div class="checks" id="fCidade"></div>
+    </div>
+
+    <div class="fgroup">
+      <label class="h">Bairro <span id="bairroHint" style="text-transform:none;letter-spacing:0;color:var(--muted)"></span></label>
+      <input type="text" id="bairroSearch" placeholder="buscar bairro..." style="margin-bottom:6px">
+      <div class="checks" id="fBairro"></div>
+    </div>
+
+    <div class="fgroup">
+      <button class="btn" id="createAlarmFromFilters" style="margin-bottom:7px">🔔 Criar alarme com estes filtros</button>
+      <button class="btn sec" id="reset">Limpar todos os filtros</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="maphint">Use a ferramenta ▭ / ⬠ (canto sup. esq.) para selecionar uma área no mapa</div>
+      <div class="areaflag" id="areaflag"><span id="areaflagTxt">Filtrando por área</span><button id="clearArea">limpar</button></div>
+      <div class="legend">Score de oportunidade<div class="bar"></div><div class="ends"><span>baixo</span><span>alto</span></div></div>
+      <div class="geobar" id="geoBar">
+        <span id="geoTxt">Pinos aproximados (cidade)</span>
+        <div class="pb" id="geoPb" style="display:none"><i></i></div>
+        <button id="geoToggle">📍 Corrigir endereços</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table id="tbl">
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="foot">
+      <span id="footcount"></span>
+      <span><span class="ldot v"></span> endereço verificado · <span class="ldot b"></span> bairro · <span class="ldot c"></span> cidade (aprox.). Tudo na Paraíba.</span>
+      <span class="spacer" style="flex:1"></span>
+      <span>Fonte: Caixa Econômica Federal</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="alertModal">
+  <div class="sheet">
+    <header>
+      <h2>🔔 Central de Alertas</h2>
+      <button class="x" id="closeAlerts">×</button>
+    </header>
+    <div class="body">
+      <div class="banner" id="seenBanner"></div>
+
+      <div class="sectn">
+        <h3>Novas oportunidades que disparam alarme</h3>
+        <div id="newList"></div>
+      </div>
+
+      <div class="sectn">
+        <h3>Meus alarmes</h3>
+        <div id="alarmList"></div>
+        <button class="mini" id="addAlarm" style="margin-top:6px">+ Novo alarme</button>
+        <div id="editorWrap" style="margin-top:10px;display:none"></div>
+      </div>
+    </div>
+    <div class="ftr">
+      <button class="btn" id="markSeen" style="flex:1">✓ Marcar oportunidades atuais como vistas</button>
+      <button class="mini" id="exportState">Exportar estado</button>
+      <button class="mini" id="importState">Importar</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="runModal">
+  <div class="sheet">
+    <header>
+      <h2>⚡ Rodar workflow</h2>
+      <button class="x" id="closeRun">×</button>
+    </header>
+    <div class="body">
+      <div class="sectn">
+        <h3>Rotina completa (baixa CSV novo)</h3>
+        <div class="muted2">Um clique no botão abaixo roda TODO o ciclo no seu Mac: baixa o CSV novo da Caixa, recalcula score, aplica seus alarmes, atualiza o painel e envia o WhatsApp das novas oportunidades.</div>
+        <button class="btn" id="runFull" style="margin-top:9px">▶ Rodar agora</button>
+        <div id="runFullNote" class="muted2" style="margin-top:7px"></div>
+        <pre id="runFullLog" style="display:none;margin-top:8px;max-height:220px;overflow:auto;font-size:11px;background:rgba(0,0,0,.06);padding:8px;border-radius:6px;white-space:pre-wrap"></pre>
+        <div class="muted2" style="margin-top:8px">Precisa do servidor local ligado: <b>duplo-clique em “Abrir Painel.command”</b> na pasta do projeto (ele abre este painel já conectado). ⏰ Também roda sozinho às 07:00 pelo agendador.</div>
+      </div>
+      <div class="sectn">
+        <h3>Gerar fila de WhatsApp agora (offline)</h3>
+        <div class="muted2">Usa os imóveis já carregados no painel + seus alarmes ATIVOS para montar as mensagens das NOVAS oportunidades e baixar o <code>whatsapp_outbox.json</code>. Não baixa CSV novo nem envia.</div>
+        <button class="btn sec" id="runQueue" style="margin-top:9px">⬇ Gerar e baixar fila</button>
+        <div id="runQueueOut" class="banner" style="display:none;margin-top:9px"></div>
+        <div class="muted2" style="margin-top:8px">Depois, mova o arquivo para a pasta do projeto e rode no Mac:<br><code>cd "…/leilao" &amp;&amp; python3 whatsapp_sender.py</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const ALL = DATA.records, META = DATA.meta;
+const fmtBRL = n => n==null? '—' : 'R$ '+Math.round(n).toLocaleString('pt-BR');
+const fmtNum = n => n==null? '—' : n.toLocaleString('pt-BR',{maximumFractionDigits:0});
+document.getElementById('sourceline').textContent =
+  `${META.count} imóveis · ${META.cities} cidades · arquivo: ${META.source}`;
+if(META.lastRun){
+  let extra = ` · atualizado ${META.lastRun}`;
+  if(META.newCount) extra += ` · ${META.newCount} nova(s) na lista`;
+  if(META.pendingValidation) extra += ` · ${META.pendingValidation} aguardando validação`;
+  document.getElementById('sourceline').textContent += extra;
+}
+
+// ---------- score color ----------
+function scoreColor(s){
+  s = Math.max(0,Math.min(100,s))/100;
+  const stops=[[248,81,73],[210,153,34],[63,185,80]];
+  let c;
+  if(s<0.5){const t=s/0.5;c=stops[0].map((v,i)=>v+(stops[1][i]-v)*t);}
+  else{const t=(s-0.5)/0.5;c=stops[1].map((v,i)=>v+(stops[2][i]-v)*t);}
+  return `rgb(${c.map(Math.round).join(',')})`;
+}
+
+// ---------- map ----------
+const map = L.map('map',{preferCanvas:true}).setView([-7.2,-36.2],7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© OpenStreetMap, © CARTO', maxZoom:19, subdomains:'abcd'
+}).addTo(map);
+const cluster = L.markerClusterGroup({maxClusterRadius:45, spiderfyOnMaxZoom:true, chunkedLoading:true});
+map.addLayer(cluster);
+
+// draw control for area selection
+const drawn = new L.FeatureGroup().addTo(map);
+const drawCtl = new L.Control.Draw({
+  edit:{featureGroup:drawn, edit:false, remove:false},
+  draw:{polyline:false, circle:false, circlemarker:false, marker:false,
+        rectangle:{shapeOptions:{color:'#3fb950',weight:2,fillOpacity:0.06}},
+        polygon:{shapeOptions:{color:'#3fb950',weight:2,fillOpacity:0.06},allowIntersection:false}}
+});
+map.addControl(drawCtl);
+let areaLayer=null;
+map.on(L.Draw.Event.CREATED, e=>{
+  drawn.clearLayers(); areaLayer=e.layer; drawn.addLayer(areaLayer);
+  document.getElementById('areaflag').style.display='flex'; refresh();
+});
+document.getElementById('clearArea').onclick=()=>{
+  drawn.clearLayers(); areaLayer=null;
+  document.getElementById('areaflag').style.display='none'; refresh();
+};
+function pointInArea(r){
+  if(!areaLayer) return true;
+  const ll=L.latLng(r.lat,r.lon);
+  if(areaLayer instanceof L.Rectangle || areaLayer.getBounds && !areaLayer.getLatLngs)
+    return areaLayer.getBounds().contains(ll);
+  // polygon ray casting
+  const pts=areaLayer.getLatLngs()[0]; let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i].lng,yi=pts[i].lat,xj=pts[j].lng,yj=pts[j].lat;
+    const hit=((yi>r.lat)!=(yj>r.lat)) && (r.lon < (xj-xi)*(r.lat-yi)/(yj-yi)+xi);
+    if(hit) inside=!inside;
+  }
+  return inside;
+}
+
+// ---------- area geometry helpers (para alarmes com área no mapa) ----------
+// Captura a forma desenhada atualmente no mapa como geometria serializável.
+function currentAreaGeometry(){
+  if(!areaLayer) return null;
+  if(areaLayer instanceof L.Rectangle){
+    const b=areaLayer.getBounds();
+    return {type:'rect', bounds:[[b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]]};
+  }
+  const pts=areaLayer.getLatLngs()[0].map(p=>[p.lat,p.lng]);
+  return {type:'polygon', points:pts};
+}
+// Testa se um imóvel cai dentro de uma geometria salva (ray casting).
+function pointInGeom(r,g){
+  if(!g) return true;
+  if(g.type==='rect'){
+    const s=g.bounds[0][0],w=g.bounds[0][1],n=g.bounds[1][0],e=g.bounds[1][1];
+    return r.lat>=s && r.lat<=n && r.lon>=w && r.lon<=e;
+  }
+  const pts=g.points; let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const yi=pts[i][0],xi=pts[i][1],yj=pts[j][0],xj=pts[j][1];
+    const hit=((yi>r.lat)!=(yj>r.lat)) && (r.lon<(xj-xi)*(r.lat-yi)/(yj-yi)+xi);
+    if(hit) inside=!inside;
+  }
+  return inside;
+}
+// Redesenha uma geometria salva no mapa e a torna o filtro de área ativo.
+function setAreaFromGeom(g){
+  drawn.clearLayers(); areaLayer=null;
+  document.getElementById('areaflag').style.display='none';
+  if(!g) return;
+  const style={color:'#3fb950',weight:2,fillOpacity:0.06};
+  areaLayer = g.type==='rect' ? L.rectangle(g.bounds,style) : L.polygon(g.points,style);
+  drawn.addLayer(areaLayer);
+  document.getElementById('areaflag').style.display='flex';
+  try{ map.fitBounds(areaLayer.getBounds(),{maxZoom:12,padding:[30,30]}); }catch(e){}
+}
+function areaLabel(g){
+  if(!g) return 'Nenhuma área definida';
+  return g.type==='rect' ? 'Retângulo definido no mapa' : `Polígono com ${g.points.length} pontos`;
+}
+// Lista de bairros (opcionalmente restrita a um conjunto de cidades).
+function uniqBairros(cities){
+  const set=new Set();
+  ALL.forEach(r=>{ if(cities&&cities.length&&!cities.includes(r.cidade)) return; set.add(r.bairro||'—'); });
+  return [...set].sort();
+}
+
+// ---------- build filters ----------
+function uniqCounts(key){
+  const m={}; ALL.forEach(r=>{const v=r[key]||'—'; m[v]=(m[v]||0)+1;});
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+function buildChecks(elId, key){
+  const el=document.getElementById(elId);
+  uniqCounts(key).forEach(([v,c])=>{
+    const lab=document.createElement('label');
+    lab.innerHTML=`<input type="checkbox" value="${v.replace(/"/g,'&quot;')}"><span>${v}</span><span class="cnt">${c}</span>`;
+    lab.querySelector('input').addEventListener('change',refresh);
+    el.appendChild(lab);
+  });
+}
+buildChecks('fTipo','tipo'); buildChecks('fModal','modalidade'); buildChecks('fCidade','cidade');
+function checkedVals(elId){return [...document.querySelectorAll(`#${elId} input:checked`)].map(i=>i.value);}
+
+// Dynamic bairro list: depends on selected cities + search box, preserves checks
+function rebuildBairros(){
+  const el=document.getElementById('fBairro');
+  const cities=checkedVals('fCidade');
+  const term=document.getElementById('bairroSearch').value.trim().toLowerCase();
+  const keep=new Set(checkedVals('fBairro'));      // preserve current selection
+  const m={};
+  ALL.forEach(r=>{
+    if(cities.length && !cities.includes(r.cidade)) return;
+    const v=r.bairro||'—'; m[v]=(m[v]||0)+1;
+  });
+  let entries=Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  if(term) entries=entries.filter(([v])=>v.toLowerCase().includes(term));
+  el.innerHTML='';
+  entries.forEach(([v,c])=>{
+    const lab=document.createElement('label');
+    const checked=keep.has(v)?'checked':'';
+    lab.innerHTML=`<input type="checkbox" value="${v.replace(/"/g,'&quot;')}" ${checked}><span>${v}</span><span class="cnt">${c}</span>`;
+    lab.querySelector('input').addEventListener('change',refresh);
+    el.appendChild(lab);
+  });
+  document.getElementById('bairroHint').textContent =
+    cities.length ? `(${entries.length} em ${cities.length} cidade${cities.length>1?'s':''})` : `(${entries.length} no total)`;
+}
+// rebuild bairros whenever a city checkbox or the bairro search changes
+document.querySelectorAll('#fCidade input').forEach(c=>c.addEventListener('change',rebuildBairros));
+document.getElementById('bairroSearch').addEventListener('input',rebuildBairros);
+rebuildBairros();
+
+['q','scoreMin','descMin','precoMin','precoMax','ppm2Max','quartosMin','financ']
+  .forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+const sv=document.getElementById('scoreMinV'), dv=document.getElementById('descMinV');
+document.getElementById('scoreMin').addEventListener('input',e=>sv.textContent=e.target.value);
+document.getElementById('descMin').addEventListener('input',e=>dv.textContent=e.target.value);
+
+document.getElementById('reset').onclick=()=>{
+  document.querySelectorAll('aside input[type=checkbox]').forEach(c=>c.checked=false);
+  ['q','precoMin','precoMax','ppm2Max'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('scoreMin').value=0; sv.textContent='0';
+  document.getElementById('descMin').value=0; dv.textContent='0';
+  document.getElementById('quartosMin').value='0';
+  document.getElementById('financ').value='';
+  document.getElementById('bairroSearch').value='';
+  document.getElementById('onlyAlarm').checked=false;
+  document.getElementById('onlyNew').checked=false;
+  document.getElementById('onlyVerified').checked=false;
+  rebuildBairros();
+  refresh();
+};
+
+// ---------- filtering ----------
+function passFilters(r){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  if(q){const hay=`${r.id} ${r.endereco} ${r.bairro} ${r.cidade}`.toLowerCase(); if(!hay.includes(q)) return false;}
+  if((r.score||0) < +document.getElementById('scoreMin').value) return false;
+  if((r.desconto||0) < +document.getElementById('descMin').value) return false;
+  const pmin=document.getElementById('precoMin').value, pmax=document.getElementById('precoMax').value;
+  if(pmin!=='' && (r.preco==null||r.preco<+pmin)) return false;
+  if(pmax!=='' && (r.preco==null||r.preco>+pmax)) return false;
+  const ppm=document.getElementById('ppm2Max').value;
+  if(ppm!=='' && (r.ppm2==null||r.ppm2>+ppm)) return false;
+  const qm=+document.getElementById('quartosMin').value;
+  if(qm>0 && (r.quartos==null||r.quartos<qm)) return false;
+  const fin=document.getElementById('financ').value;
+  if(fin && r.financiamento!==fin) return false;
+  const tp=checkedVals('fTipo'); if(tp.length && !tp.includes(r.tipo)) return false;
+  const md=checkedVals('fModal'); if(md.length && !md.includes(r.modalidade)) return false;
+  const cd=checkedVals('fCidade'); if(cd.length && !cd.includes(r.cidade)) return false;
+  const br=checkedVals('fBairro'); if(br.length && !br.includes(r.bairro||'—')) return false;
+  if(document.getElementById('onlyAlarm').checked && !matchesAnyAlarm(r)) return false;
+  if(document.getElementById('onlyNew').checked && !isNew(r)) return false;
+  if(document.getElementById('onlyVerified').checked && locLevel(r)!=='endereco') return false;
+  return true;
+}
+// nível de confiança da localização: 'endereco' (real) > 'bairro' > 'cidade' (aproximado)
+function locLevel(r){return r.prec||'cidade';}
+function isVerified(r){return locLevel(r)==='endereco';}
+function locDot(r){
+  const lv=locLevel(r);
+  const cls=lv==='endereco'?'v':lv==='bairro'?'b':'c';
+  const t=lv==='endereco'?'endereço verificado':lv==='bairro'?'aproximado (bairro)':'aproximado (cidade)';
+  return `<span class="ldot ${cls}" title="${t}"></span>`;
+}
+
+// ---------- table ----------
+const COLS=[
+  {k:'score',t:'Score',num:true,fmt:r=>`<span class="scorepill" style="background:${scoreColor(r.score)}">${r.score}</span>`},
+  {k:'desconto',t:'Desc.%',num:true,fmt:r=>r.desconto!=null?`<span class="disc">${r.desconto.toFixed(1)}%</span>`:'—'},
+  {k:'preco',t:'Preço',num:true,fmt:r=>fmtBRL(r.preco)},
+  {k:'avaliacao',t:'Avaliação',num:true,fmt:r=>fmtBRL(r.avaliacao)},
+  {k:'ppm2',t:'R$/m²',num:true,fmt:r=>fmtNum(r.ppm2)},
+  {k:'tipo',t:'Tipo',fmt:r=>`<span class="tag">${r.tipo||'—'}</span>`},
+  {k:'quartos',t:'Qts',num:true,fmt:r=>r.quartos??'—'},
+  {k:'area_use',t:'Área m²',num:true,fmt:r=>fmtNum(r.area_use)},
+  {k:'cidade',t:'Cidade',fmt:r=>r.cidade},
+  {k:'bairro',t:'Bairro',fmt:r=>r.bairro||'—'},
+  {k:'prec',t:'Loc.',fmt:r=>locDot(r)},
+  {k:'financiamento',t:'Fin.',fmt:r=>r.financiamento},
+  {k:'link',t:'',fmt:r=>`<a href="${r.link}" target="_blank" rel="noopener">abrir ↗</a>`},
+];
+let sortKey='score', sortDir=-1;
+const thead=document.getElementById('thead');
+COLS.forEach(c=>{
+  const th=document.createElement('th'); th.textContent=c.t;
+  if(c.k!=='link'){th.onclick=()=>{if(sortKey===c.k)sortDir*=-1;else{sortKey=c.k;sortDir=c.num?-1:1;}render();};}
+  th.dataset.k=c.k; thead.appendChild(th);
+});
+
+let current=[];
+function refresh(){
+  current = ALL.filter(r=>passFilters(r) && pointInArea(r));
+  render(); renderMarkers(); renderKPIs(); updateAlertsUI();
+  if(typeof updateGeoBar==='function') updateGeoBar();
+}
+function render(){
+  current.sort((a,b)=>{
+    let x=a[sortKey], y=b[sortKey];
+    if(x==null)x=sortDir<0?-Infinity:Infinity; if(y==null)y=sortDir<0?-Infinity:Infinity;
+    if(typeof x==='string') return x.localeCompare(y)*sortDir;
+    return (x-y)*sortDir;
+  });
+  thead.querySelectorAll('th').forEach(th=>{
+    th.innerHTML=th.dataset.k===sortKey
+      ? `${COLS.find(c=>c.k===sortKey).t} <span class="ar">${sortDir<0?'▼':'▲'}</span>`
+      : COLS.find(c=>c.k===th.dataset.k).t;
+  });
+  const tb=document.getElementById('tbody'); tb.innerHTML='';
+  const frag=document.createDocumentFragment();
+  current.slice(0,600).forEach(r=>{
+    const tr=document.createElement('tr'); tr.dataset.id=r.id;
+    const flagged = matchesAnyAlarm(r) && isNew(r);
+    if(flagged) tr.classList.add('isnew');
+    tr.innerHTML=COLS.map(c=>`<td class="${c.num?'num':''}">${c.fmt(r)}</td>`).join('');
+    if(flagged) tr.firstChild.insertAdjacentHTML('beforeend',' <span class="newbadge">NOVO</span>');
+    tr.addEventListener('mouseenter',()=>highlight(r,false));
+    tr.addEventListener('click',e=>{if(e.target.tagName!=='A')highlight(r,true);});
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+  const nv=current.filter(isVerified).length;
+  const nb=current.filter(r=>locLevel(r)==='bairro').length;
+  const nc=current.filter(r=>locLevel(r)==='cidade').length;
+  document.getElementById('footcount').innerHTML=
+    `<span>${current.length} imóveis no filtro${current.length>600?' (mostrando 600)':''}</span>`+
+    `<span class="conf"><span><span class="ldot v"></span>${nv} verif.</span>`+
+    `<span><span class="ldot b"></span>${nb} bairro</span>`+
+    `<span><span class="ldot c"></span>${nc} aprox.</span></span>`;
+  // aviso na seleção de área: pinos aproximados podem estar no lugar errado
+  const af=document.getElementById('areaflag'), aft=document.getElementById('areaflagTxt');
+  if(areaLayer){
+    const approxIn=nc+nb;
+    if(approxIn>0){ af.classList.add('warn');
+      aft.textContent=`Área: ${current.length} imóveis — ${approxIn} com localização aproximada (podem estar fora). Use “Corrigir endereços”.`;
+    }else{ af.classList.remove('warn'); aft.textContent=`Área: ${current.length} imóveis, todos verificados ✓`; }
+  }
+}
+
+// ---------- markers ----------
+const markerById={};
+function popupHtml(r){
+  return `<b>${r.tipo||'Imóvel'} — ${r.cidade}</b><br>${r.bairro||''}<br>${r.endereco||''}<br>
+    <span class="disc">${(r.desconto??0).toFixed(1)}% off</span> · <b>${fmtBRL(r.preco)}</b>
+    <span style="text-decoration:line-through;color:#888">${fmtBRL(r.avaliacao)}</span><br>
+    R$/m²: ${fmtNum(r.ppm2)} · ${r.quartos??'—'} qto · Score ${r.score}<br>
+    ${r.financiamento==='Sim'?'✅ aceita financiamento':'💵 somente à vista'}<br>
+    <span style="color:#666">${locLevel(r)==='endereco'?'📍 localização verificada (endereço real)':locLevel(r)==='bairro'?'📍 aproximada — centro do bairro':'📍 aproximada — centro da cidade. Use “Corrigir endereços”'}</span><br>
+    <a href="${r.link}" target="_blank" rel="noopener">ver no site da Caixa ↗</a>`;
+}
+function renderMarkers(){
+  cluster.clearLayers();
+  const ms=current.map(r=>{
+    const flagged = matchesAnyAlarm(r) && isNew(r);
+    const lv=locLevel(r);
+    // localização aproximada (cidade) = pino vazado/tracejado, para você não confiar nele numa área
+    const approx = lv==='cidade';
+    const opts={radius:flagged?8:6, weight:flagged?3:1.2,
+      color:flagged?'#f85149':(approx?'#6b7686':'#0d1117'),
+      fillColor:scoreColor(r.score),
+      fillOpacity:approx?0.25:(lv==='bairro'?0.7:0.95)};
+    if(approx) opts.dashArray='2,3';
+    const m=L.circleMarker([r.lat,r.lon],opts);
+    m.bindPopup(popupHtml(r)); markerById[r.id]=m; m._rec=r; return m;
+  });
+  cluster.addLayers(ms);
+}
+let lastSel=null;
+function highlight(r,openPopup){
+  document.querySelectorAll('#tbody tr.sel').forEach(t=>t.classList.remove('sel'));
+  const tr=document.querySelector(`#tbody tr[data-id="${r.id}"]`); if(tr)tr.classList.add('sel');
+  const m=markerById[r.id];
+  if(m && openPopup){
+    map.setView([r.lat,r.lon], Math.max(map.getZoom(),13));
+    cluster.zoomToShowLayer(m,()=>m.openPopup());
+  }
+  lastSel=r;
+}
+
+// ---------- KPIs ----------
+function median(arr){if(!arr.length)return null;const s=[...arr].sort((a,b)=>a-b);const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function renderKPIs(){
+  const c=current;
+  const desc=c.map(r=>r.desconto).filter(v=>v!=null);
+  const save=c.reduce((s,r)=>s+((r.avaliacao||0)-(r.preco||0)),0);
+  const fin=c.filter(r=>r.financiamento==='Sim').length;
+  const kpis=[
+    {l:'Imóveis',v:c.length},
+    {l:'Desc. médio',v:desc.length?(desc.reduce((a,b)=>a+b,0)/desc.length).toFixed(1)+'%':'—',good:true},
+    {l:'Preço mediano',v:fmtBRL(median(c.map(r=>r.preco).filter(v=>v!=null)))},
+    {l:'Economia total',v:fmtBRL(save),good:true},
+    {l:'Financiáveis',v:fin},
+    {l:'Melhor score',v:c.length?Math.max(...c.map(r=>r.score||0)).toFixed(0):'—',good:true},
+  ];
+  document.getElementById('kpis').innerHTML=kpis.map(k=>
+    `<div class="kpi ${k.good?'good':''}"><div class="v">${k.v}</div><div class="l">${k.l}</div></div>`).join('');
+}
+
+// ====================== ALERTAS / NOVAS OPORTUNIDADES ======================
+const LS_KEY='leilao_pb_state_v1';
+let ALARMS=[];                 // [{id,name,enabled,scoreMin,descMin,precoMax,ppm2Max,quartosMin,financ,tipos:[],cidades:[]}]
+let SEEN=new Set();            // ids já vistos (baseline)
+let SEEN_META={at:null};       // quando o baseline foi marcado
+
+function lsGet(){ try{return JSON.parse(localStorage.getItem(LS_KEY))||null;}catch(e){return null;} }
+function lsSet(){ try{localStorage.setItem(LS_KEY,JSON.stringify({alarms:ALARMS,seen:[...SEEN],seenMeta:SEEN_META}));}catch(e){} }
+function loadState(){
+  const s=lsGet();
+  if(s){ ALARMS=s.alarms||[]; SEEN=new Set(s.seen||[]); SEEN_META=s.seenMeta||{at:null}; }
+  else { // primeira carga: herda alarmes e baseline calculados pela rotina automática
+    if(META.alarms && META.alarms.length) ALARMS=META.alarms;
+    if(META.seenBaseline && META.seenBaseline.length) SEEN=new Set(META.seenBaseline);
+    if(META.seenMeta) SEEN_META=META.seenMeta;
+  }
+  if(!ALARMS.length){
+    // alarme padrão de exemplo (desligado), baseado no foco em desconto
+    ALARMS=[{id:'a'+Date.now(),name:'Grandes descontos',enabled:false,scoreMin:0,descMin:50,
+             precoMax:null,ppm2Max:null,quartosMin:0,financ:'',tipos:[],cidades:[],bairros:[],area:null}];
+  }
+}
+
+function matchAlarm(r,a){
+  if((r.score||0) < (a.scoreMin||0)) return false;
+  if((r.desconto||0) < (a.descMin||0)) return false;
+  if(a.precoMax!=null && (r.preco==null||r.preco>a.precoMax)) return false;
+  if(a.ppm2Max!=null && (r.ppm2==null||r.ppm2>a.ppm2Max)) return false;
+  if(a.quartosMin && (r.quartos==null||r.quartos<a.quartosMin)) return false;
+  if(a.financ && r.financiamento!==a.financ) return false;
+  if(a.tipos&&a.tipos.length && !a.tipos.includes(r.tipo)) return false;
+  if(a.cidades&&a.cidades.length && !a.cidades.includes(r.cidade)) return false;
+  if(a.bairros&&a.bairros.length && !a.bairros.includes(r.bairro||'—')) return false;
+  if(a.area && !pointInGeom(r,a.area)) return false;
+  return true;
+}
+function enabledAlarms(){return ALARMS.filter(a=>a.enabled);}
+function matchesAnyAlarm(r){return enabledAlarms().some(a=>matchAlarm(r,a));}
+function isNew(r){return !SEEN.has(r.id);}
+function alarmMatches(a){return ALL.filter(r=>matchAlarm(r,a));}
+function newOpportunities(){return ALL.filter(r=>matchesAnyAlarm(r)&&isNew(r));}
+
+// ---------- UI: header dot + banner + lista de novas ----------
+function updateAlertsUI(){
+  const news=newOpportunities();
+  const dot=document.getElementById('alertDot');
+  dot.textContent=news.length; dot.classList.toggle('on',news.length>0);
+  // banner
+  const b=document.getElementById('seenBanner');
+  if(!SEEN.size){
+    b.style.display='block';
+    b.textContent='Nenhum baseline definido. Clique em “Marcar oportunidades atuais como vistas” para que, nas próximas atualizações da lista, apenas os imóveis inéditos sejam destacados como NOVOS.';
+  }else{
+    b.style.display='block';
+    b.textContent=`Baseline com ${SEEN.size} imóveis já conhecidos`+(SEEN_META.at?` (marcado em ${SEEN_META.at}).`:'.')+` ${news.length} nova(s) oportunidade(s) desde então.`;
+  }
+  // lista de novas
+  const nl=document.getElementById('newList');
+  const list=news.sort((a,b)=>(b.score||0)-(a.score||0));
+  if(!enabledAlarms().length){ nl.innerHTML='<div class="empty">Nenhum alarme ativo. Crie ou ative um alarme abaixo.</div>'; }
+  else if(!list.length){ nl.innerHTML='<div class="empty">Nenhuma nova oportunidade no momento. 👍</div>'; }
+  else nl.innerHTML=list.slice(0,40).map(r=>`<div class="oppline">
+      <span class="sc" style="background:${scoreColor(r.score)}">${r.score}</span>
+      <span class="gp"><b>${(r.desconto??0).toFixed(0)}% off</b> · ${fmtBRL(r.preco)} · ${r.tipo||''} — ${r.cidade}/${r.bairro||''}</span>
+      <a href="${r.link}" target="_blank" rel="noopener">↗</a></div>`).join('')
+      + (list.length>40?`<div class="empty">+${list.length-40} outras…</div>`:'');
+  renderAlarmList();
+}
+
+// ---------- UI: lista de alarmes ----------
+function critSummary(a){
+  const p=[];
+  if(a.descMin) p.push(`desc ≥ ${a.descMin}%`);
+  if(a.scoreMin) p.push(`score ≥ ${a.scoreMin}`);
+  if(a.precoMax!=null) p.push(`preço ≤ ${fmtBRL(a.precoMax)}`);
+  if(a.ppm2Max!=null) p.push(`R$/m² ≤ ${fmtNum(a.ppm2Max)}`);
+  if(a.quartosMin) p.push(`${a.quartosMin}+ qto`);
+  if(a.financ) p.push(a.financ==='Sim'?'financiável':'à vista');
+  if(a.tipos&&a.tipos.length) p.push(a.tipos.join('/'));
+  if(a.cidades&&a.cidades.length) p.push(a.cidades.length>2?`${a.cidades.length} cidades`:a.cidades.join('/'));
+  if(a.bairros&&a.bairros.length) p.push(a.bairros.length>2?`${a.bairros.length} bairros`:a.bairros.join('/'));
+  if(a.area) p.push('📐 área no mapa');
+  if(a.recipients&&a.recipients.length) p.push(`📱 ${a.recipients.length} nº`);
+  return p.length?p.join(' · '):'sem critérios (todos os imóveis)';
+}
+function renderAlarmList(){
+  const el=document.getElementById('alarmList');
+  el.innerHTML=ALARMS.map(a=>{
+    const m=alarmMatches(a); const nw=m.filter(isNew).length;
+    return `<div class="acard ${a.enabled?'':'off'}" data-id="${a.id}">
+      <div class="top">
+        <label class="sw"><input type="checkbox" class="aen" ${a.enabled?'checked':''}><span></span></label>
+        <span class="nm">${a.name||'(sem nome)'}</span>
+        <span class="cnt">${m.length} imóveis<br><b>${nw} novos</b></span>
+      </div>
+      <div class="crit">${critSummary(a)}</div>
+      <div class="acts">
+        <button class="mini aapply">Aplicar aos filtros</button>
+        <button class="mini aedit">Editar</button>
+        <button class="mini danger adel">Excluir</button>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">Nenhum alarme. Crie o primeiro abaixo.</div>';
+  el.querySelectorAll('.acard').forEach(card=>{
+    const id=card.dataset.id, a=ALARMS.find(x=>x.id===id);
+    card.querySelector('.aen').onchange=e=>{a.enabled=e.target.checked;lsSet();refresh();};
+    card.querySelector('.aapply').onclick=()=>applyAlarmToFilters(a);
+    card.querySelector('.aedit').onclick=()=>openEditor(a);
+    card.querySelector('.adel').onclick=()=>{if(confirm('Excluir este alarme?')){ALARMS=ALARMS.filter(x=>x.id!==id);lsSet();refresh();}};
+  });
+}
+function applyAlarmToFilters(a){
+  document.getElementById('reset').click();
+  document.getElementById('scoreMin').value=a.scoreMin||0; document.getElementById('scoreMinV').textContent=a.scoreMin||0;
+  document.getElementById('descMin').value=a.descMin||0; document.getElementById('descMinV').textContent=a.descMin||0;
+  if(a.precoMax!=null) document.getElementById('precoMax').value=a.precoMax;
+  if(a.ppm2Max!=null) document.getElementById('ppm2Max').value=a.ppm2Max;
+  document.getElementById('quartosMin').value=a.quartosMin||0;
+  document.getElementById('financ').value=a.financ||'';
+  document.querySelectorAll('#fTipo input').forEach(c=>c.checked=(a.tipos||[]).includes(c.value));
+  document.querySelectorAll('#fCidade input').forEach(c=>c.checked=(a.cidades||[]).includes(c.value));
+  rebuildBairros();
+  document.querySelectorAll('#fBairro input').forEach(c=>c.checked=(a.bairros||[]).includes(c.value));
+  setAreaFromGeom(a.area||null);
+  document.getElementById('alertModal').classList.remove('open');
+  refresh();
+}
+
+// Monta um alarme a partir do estado atual dos filtros da tela (sidebar + área no mapa).
+// Obs: o filtro "preço mín" da tela não existe no alarme (alarme usa só preço máx).
+function currentFiltersAsAlarm(){
+  const num=id=>{const v=document.getElementById(id).value;return v===''?null:+v;};
+  return {
+    id:'a'+Date.now(), name:'', enabled:true,
+    scoreMin:+document.getElementById('scoreMin').value||0,
+    descMin:+document.getElementById('descMin').value||0,
+    precoMax:num('precoMax'), ppm2Max:num('ppm2Max'),
+    quartosMin:+document.getElementById('quartosMin').value||0,
+    financ:document.getElementById('financ').value||'',
+    tipos:checkedVals('fTipo'), cidades:checkedVals('fCidade'),
+    bairros:checkedVals('fBairro'), area:currentAreaGeometry(),
+    recipients:[]
+  };
+}
+function createAlarmFromFilters(){
+  document.getElementById('alertModal').classList.add('open');
+  openEditor(currentFiltersAsAlarm(), true);
+  const w=document.getElementById('editorWrap');
+  if(w) w.scrollIntoView({behavior:'smooth',block:'nearest'});
+  const nm=document.getElementById('eName'); if(nm) nm.focus();
+}
+
+// ---------- UI: editor de alarme ----------
+function uniqVals(key){return [...new Set(ALL.map(r=>r[key]).filter(Boolean))].sort();}
+function openEditor(a, forceNew){
+  const isNew_ = !a || forceNew===true;   // forceNew = rascunho novo já pré-preenchido (ex: vindo dos filtros da tela)
+  if(!a) a={id:'a'+Date.now(),name:'',enabled:true,scoreMin:0,descMin:0,precoMax:null,ppm2Max:null,quartosMin:0,financ:'',tipos:[],cidades:[],bairros:[],area:null,recipients:[]};
+  const w=document.getElementById('editorWrap'); w.style.display='block';
+  const opt=(v,sel)=>`<option value="${v}" ${sel?'selected':''}>${v}</option>`;
+  w.innerHTML=`<div class="eform">
+    <div class="full"><label>Nome do alarme</label><input id="eName" value="${a.name||''}" placeholder="ex: Casas baratas em João Pessoa"></div>
+    <div><label>Score mínimo</label><input type="number" id="eScore" value="${a.scoreMin||''}"></div>
+    <div><label>Desconto mín (%)</label><input type="number" id="eDesc" value="${a.descMin||''}" min="0" max="100" placeholder="ex: 50"></div>
+    <div><label>Preço máx (R$)</label><input type="number" id="ePreco" value="${a.precoMax??''}"></div>
+    <div><label>R$/m² máx</label><input type="number" id="ePpm2" value="${a.ppm2Max??''}"></div>
+    <div><label>Quartos mín</label><input type="number" id="eQtos" value="${a.quartosMin||''}"></div>
+    <div><label>Financiamento</label><select id="eFin">${opt('',!a.financ)}<option value="Sim" ${a.financ==='Sim'?'selected':''}>Aceita</option><option value="Não" ${a.financ==='Não'?'selected':''}>À vista</option></select></div>
+    <div><label>Tipos</label><select id="eTipos" class="multi" multiple>${uniqVals('tipo').map(v=>opt(v,(a.tipos||[]).includes(v))).join('')}</select></div>
+    <div><label>Cidades</label><select id="eCidades" class="multi" multiple>${uniqVals('cidade').map(v=>opt(v,(a.cidades||[]).includes(v))).join('')}</select></div>
+    <div><label>Bairros</label><select id="eBairros" class="multi" multiple>${uniqBairros(a.cidades||[]).map(v=>opt(v,(a.bairros||[]).includes(v))).join('')}</select></div>
+    <div class="full"><label>📐 Área no mapa (opcional)</label>
+      <div id="eAreaState" style="font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px">${areaLabel(a.area||null)}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <button type="button" class="mini" id="eAreaUse">▭ Usar área desenhada no mapa</button>
+        <button type="button" class="mini" id="eAreaShow">Prever no mapa</button>
+        <button type="button" class="mini danger" id="eAreaClear">Remover área</button>
+      </div>
+      <div style="color:var(--muted);font-size:11px;margin-top:5px">Desenhe um retângulo/polígono com a ferramenta ▭/⬠ (canto sup. esq. do mapa) e clique em “Usar área desenhada”. Dica: rode “Corrigir endereços” antes — pinos aproximados (cidade) podem cair fora da área.</div>
+    </div>
+    <div class="full"><label>📱 WhatsApp — destinatários (números, separados por vírgula, formato +55…)</label><input id="eRecips" value="${(a.recipients||[]).join(', ')}" placeholder="+5583999999999, +5511988887777"></div>
+    <div class="full" style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn" id="eSave" style="flex:1">Salvar alarme</button>
+      <button class="mini" id="eCancel">Cancelar</button>
+    </div></div>`;
+  // bairros dependem das cidades escolhidas (preserva seleção ao trocar)
+  let draftArea=a.area||null;
+  const eAreaState=document.getElementById('eAreaState');
+  document.getElementById('eCidades').onchange=()=>{
+    const sel=[...document.getElementById('eCidades').selectedOptions].map(o=>o.value);
+    const keep=new Set([...document.getElementById('eBairros').selectedOptions].map(o=>o.value));
+    document.getElementById('eBairros').innerHTML=uniqBairros(sel).map(v=>opt(v,keep.has(v))).join('');
+  };
+  document.getElementById('eAreaUse').onclick=()=>{
+    const g=currentAreaGeometry();
+    if(!g){ alert('Desenhe primeiro uma área no mapa: use a ferramenta ▭ (retângulo) ou ⬠ (polígono) no canto superior esquerdo do mapa.'); return; }
+    draftArea=g; eAreaState.textContent=areaLabel(g);
+  };
+  document.getElementById('eAreaShow').onclick=()=>{
+    if(!draftArea){ alert('Nenhuma área definida ainda.'); return; }
+    setAreaFromGeom(draftArea); refresh();
+  };
+  document.getElementById('eAreaClear').onclick=()=>{ draftArea=null; eAreaState.textContent=areaLabel(null); };
+  document.getElementById('eCancel').onclick=()=>{w.style.display='none';w.innerHTML='';};
+  document.getElementById('eSave').onclick=()=>{
+    const num=id=>{const v=document.getElementById(id).value;return v===''?null:+v;};
+    a.name=document.getElementById('eName').value.trim()||'Alarme';
+    a.scoreMin=num('eScore')||0; a.descMin=num('eDesc')||0;
+    a.precoMax=num('ePreco'); a.ppm2Max=num('ePpm2'); a.quartosMin=num('eQtos')||0;
+    a.financ=document.getElementById('eFin').value;
+    a.tipos=[...document.getElementById('eTipos').selectedOptions].map(o=>o.value);
+    a.cidades=[...document.getElementById('eCidades').selectedOptions].map(o=>o.value);
+    a.bairros=[...document.getElementById('eBairros').selectedOptions].map(o=>o.value);
+    a.area=draftArea;
+    a.recipients=document.getElementById('eRecips').value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(isNew_) ALARMS.push(a);
+    w.style.display='none'; w.innerHTML=''; lsSet(); refresh();
+  };
+}
+
+// ---------- baseline / export / import ----------
+function markSeen(){
+  // tudo que está na lista atual passa a ser "conhecido"
+  ALL.forEach(r=>SEEN.add(r.id));
+  SEEN_META={at:new Date().toLocaleString('pt-BR')};
+  lsSet(); refresh();
+}
+function exportState(){
+  // mesmo formato que a rotina automática lê: salve este arquivo como leilao_state.json
+  // dentro da pasta do projeto (leilao) para a rotina diária usar seus alarmes.
+  const blob=new Blob([JSON.stringify({alarms:ALARMS,seen:[...SEEN],seenMeta:SEEN_META,geocache:GEO_CACHE},null,1)],{type:'application/json'});
+  const u=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=u; a.download='leilao_state.json'; a.click(); URL.revokeObjectURL(u);
+}
+function importState(file){
+  const rd=new FileReader();
+  rd.onload=()=>{try{const s=JSON.parse(rd.result);ALARMS=s.alarms||ALARMS;SEEN=new Set(s.seen||[]);SEEN_META=s.seenMeta||SEEN_META;
+    const gc=s.geocache||s.geoCache; if(gc){GEO_CACHE=gc;saveGeoCache();applyGeoCache();}
+    lsSet();refresh();}catch(e){alert('Arquivo inválido');}};
+  rd.readAsText(file);
+}
+
+// ---------- bindings ----------
+document.getElementById('openAlerts').onclick=()=>document.getElementById('alertModal').classList.add('open');
+document.getElementById('closeAlerts').onclick=()=>document.getElementById('alertModal').classList.remove('open');
+document.getElementById('alertModal').addEventListener('click',e=>{if(e.target.id==='alertModal')e.currentTarget.classList.remove('open');});
+document.getElementById('addAlarm').onclick=()=>openEditor(null);
+document.getElementById('createAlarmFromFilters').onclick=createAlarmFromFilters;
+
+// ---------- Rodar workflow (botão no painel) ----------
+// Constrói a fila de WhatsApp no navegador, espelhando build_outbox() do leilao_routine.py.
+function hash8(s){let h=5381;for(let i=0;i<s.length;i++){h=((h<<5)+h)^s.charCodeAt(i);}return (h>>>0).toString(16).padStart(8,'0');}
+function fmtBRLmsg(n){return n==null?'—':'R$ '+Math.round(n).toLocaleString('pt-BR');}
+function buildMsgBody(a,news){
+  const name=a.name||'Alarme';
+  const L=[`🏠 *${name}* — ${news.length} nova(s) oportunidade(s)`,'Leilão Caixa · Paraíba',''];
+  news.slice().sort((x,y)=>(y.score||0)-(x.score||0)).slice(0,50).forEach(r=>{
+    const d=r.desconto;
+    L.push(`• ${d!=null?Math.round(d)+'% off':''} · ${fmtBRLmsg(r.preco)} · ${r.tipo||''} — ${r.cidade}/${r.bairro||''} · score ${r.score}`);
+    L.push(`  ${r.link}`);
+  });
+  if(news.length>50) L.push(`…+${news.length-50} outras no painel.`);
+  return L.join('\n');
+}
+function buildOutboxClient(){
+  const today=new Date().toISOString().slice(0,10);
+  const messages=[];
+  ALARMS.filter(a=>a.enabled).forEach(a=>{
+    const recips=(a.recipients||[]).map(s=>String(s).trim()).filter(Boolean);
+    if(!recips.length) return;
+    const anew=ALL.filter(r=>matchAlarm(r,a)&&isNew(r));
+    if(!anew.length) return;
+    const body=buildMsgBody(a,anew), bh=hash8(body);
+    recips.forEach(to=>messages.push({key:`${today}:${a.id}:${to}:${bh}`,to,body,
+      alarmId:a.id,alarmName:a.name,newCount:anew.length}));
+  });
+  return {date:today, generatedAt:new Date().toISOString(), messages};
+}
+function downloadJSON(obj,name){
+  const blob=new Blob([JSON.stringify(obj,null,1)],{type:'application/json'});
+  const u=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+document.getElementById('openRun').onclick=()=>{
+  document.getElementById('runModal').classList.add('open');
+};
+document.getElementById('closeRun').onclick=()=>document.getElementById('runModal').classList.remove('open');
+document.getElementById('runModal').addEventListener('click',e=>{if(e.target.id==='runModal')e.currentTarget.classList.remove('open');});
+// Botão único: chama o servidor local (server.py) que roda o ciclo completo no Mac.
+const RUN_SERVER = (location.protocol==='http:'||location.protocol==='https:') ? '' : 'http://127.0.0.1:8765';
+document.getElementById('runFull').onclick=async()=>{
+  const btn=document.getElementById('runFull'), note=document.getElementById('runFullNote'), log=document.getElementById('runFullLog');
+  btn.disabled=true; log.style.display='none'; log.textContent='';
+  note.textContent='⏳ Rodando… baixando CSV, analisando e enviando WhatsApp. Pode levar até ~1 min.';
+  try{
+    const r=await fetch(RUN_SERVER+'/run',{method:'POST'});
+    const j=await r.json();
+    if(j.log){ log.style.display='block'; log.textContent=j.log; }
+    if(j.ok){
+      const s=j.summary||{};
+      note.innerHTML=`✓ Concluído — ${s.total??'?'} imóveis, <b>${s.new??'?'} novos</b>, ${s.whatsappQueued??0} WhatsApp na fila. <a href="#" id="reloadPanel" style="font-weight:600">Atualizar painel »</a>`;
+      btn.disabled=false;
+      const rl=document.getElementById('reloadPanel');
+      if(rl) rl.onclick=(ev)=>{ev.preventDefault(); location.reload();};
+    }else{
+      note.textContent='✗ '+(j.error||'falha desconhecida');
+      btn.disabled=false;
+    }
+  }catch(e){
+    note.innerHTML='✗ Não consegui falar com o servidor local. Ligue-o: <b>duplo-clique em “Abrir Painel.command”</b> na pasta do projeto e abra o painel por ele.';
+    btn.disabled=false;
+  }
+};
+document.getElementById('runQueue').onclick=()=>{
+  const out=document.getElementById('runQueueOut'); out.style.display='block';
+  const ob=buildOutboxClient();
+  if(!ob.messages.length){
+    out.textContent='Nenhuma mensagem gerada. Confira: existe alarme ATIVO, com destinatário (📱) e com NOVAS oportunidades (não vistas)?';
+    return;
+  }
+  downloadJSON(ob,'whatsapp_outbox.json');
+  out.innerHTML=`✓ Baixado <code>whatsapp_outbox.json</code> — ${ob.messages.length} mensagem(ns). Mova para a pasta do projeto e rode o sender no Mac.`;
+};
+document.getElementById('markSeen').onclick=markSeen;
+document.getElementById('exportState').onclick=exportState;
+document.getElementById('importState').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=e=>{if(e.target.files[0])importState(e.target.files[0]);};
+document.getElementById('onlyAlarm').addEventListener('change',refresh);
+document.getElementById('onlyNew').addEventListener('change',refresh);
+document.getElementById('onlyVerified').addEventListener('change',refresh);
+
+// ====================== GEOCODIFICAÇÃO REAL (no navegador) ======================
+// O sandbox que gerou este arquivo não acessa serviços de geocodificação, mas o SEU
+// navegador acessa. Resolve o endereço real via Nominatim (OpenStreetMap), limitado à
+// Paraíba (nunca sai do estado/Brasil), e guarda em cache para não repetir.
+const GEO_KEY='leilao_pb_geocache_v1';
+const GEO_EMAIL='mateussoutolima@gmail.com';              // identificação exigida pela política do Nominatim
+const PB_VIEWBOX='-38.85,-6.0,-34.70,-8.35';              // left,top,right,bottom (minLon,maxLat,maxLon,minLat)
+let GEO_CACHE={};
+function loadGeoCache(){ try{GEO_CACHE=JSON.parse(localStorage.getItem(GEO_KEY))||{};}catch(e){GEO_CACHE={};} }
+function saveGeoCache(){ try{localStorage.setItem(GEO_KEY,JSON.stringify(GEO_CACHE));}catch(e){} }
+function applyGeoCache(){
+  ALL.forEach(r=>{
+    const c=GEO_CACHE[r.id];
+    if(c && c.lat!=null){ r.lat=c.lat; r.lon=c.lon; r.prec=c.prec||'endereco'; }
+    else if(!r.prec){ r.prec='cidade'; }
+  });
+}
+function cleanAddr(r){
+  let s=(r.endereco||'').replace(/,/g,' ');
+  s=s.replace(/\bAPTO?\.?\s*\d+/ig,' ').replace(/\bAP\.?\s*\d+/ig,' ')
+     .replace(/\bBLOCO?\.?\s*[A-Z0-9]+/ig,' ').replace(/\bCASA\s*[A-Z0-9]?\b/ig,' ')
+     .replace(/\bCS\.?\s*\d+/ig,' ')
+     .replace(/\bQD\.?\s*[A-Z0-9]+/ig,' ').replace(/\bLT\.?\s*[A-Z0-9]+/ig,' ')
+     .replace(/\bN[º°.]?\s*SN\b/ig,' ').replace(/\bSN\b/ig,' ')
+     .replace(/\bN[º°.]?\s*(\d+)/ig,' $1 ')        // "N. 93" -> "93" (não toca em SANTA, etc.)
+     .replace(/\s{2,}/g,' ').trim();
+  return s;
+}
+async function nominatim(q){
+  const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}`+
+            `&viewbox=${PB_VIEWBOX}&bounded=1&countrycodes=br&format=jsonv2&limit=1&email=${GEO_EMAIL}`;
+  const res=await fetch(url,{headers:{'Accept':'application/json'}});
+  if(!res.ok) throw new Error('http '+res.status);
+  const arr=await res.json();
+  if(arr && arr.length) return {lat:+arr[0].lat, lon:+arr[0].lon, type:arr[0].addresstype||arr[0].type};
+  return null;
+}
+async function geocodeOne(r){
+  const street=cleanAddr(r), city=r.cidade, bairro=r.bairro;
+  // 1) endereço completo (junta só as partes não vazias)
+  let q=[street, bairro, city, 'Paraiba', 'Brasil'].filter(Boolean).join(', ');
+  let g=await nominatim(q);
+  if(g) return {...g, prec:'endereco'};
+  // 2) bairro + cidade (centro do bairro) — corrige os endereços vagos
+  if(bairro){
+    g=await nominatim(`${bairro}, ${city}, Paraiba, Brasil`);
+    if(g) return {...g, prec:'bairro'};
+  }
+  return null; // mantém posição de cidade
+}
+const geo={running:false,queue:[],idx:0,done:0,total:0,err:false};
+// Bairros-alvo do refinamento = bairros selecionados por NOME (sidebar + alarmes ativos)
+// ∪ bairros que a ÁREA abrange (área desenhada + área dos alarmes ativos). Pré-filtra
+// quais endereços refinar — barato e confiável (bairro é exato; coords são aproximadas).
+function refinementTargetBairros(){
+  const named=new Set(checkedVals('fBairro'));
+  const fromArea=new Set();
+  if(areaLayer){ ALL.forEach(r=>{ if(pointInArea(r)) fromArea.add(r.bairro||'—'); }); }
+  enabledAlarms().forEach(a=>{
+    (a.bairros||[]).forEach(b=>named.add(b));
+    if(a.area){ ALL.forEach(r=>{ if(pointInGeom(r,a.area)) fromArea.add(r.bairro||'—'); }); }
+  });
+  const all=new Set([...named,...fromArea]);
+  return all.size?all:null;     // null = sem restrição (refina tudo)
+}
+function pendingForRefinement(){
+  const tb=refinementTargetBairros();
+  return ALL.filter(r=>!(GEO_CACHE[r.id]&&GEO_CACHE[r.id].lat!=null) && (!tb||tb.has(r.bairro||'—')));
+}
+function buildGeoQueue(){
+  geo.queue=pendingForRefinement().map(r=>r.id);
+  geo.total=geo.queue.length; geo.idx=0; geo.done=0; geo.err=false;
+}
+function updateGeoBar(){
+  const txt=document.getElementById('geoTxt'), pb=document.getElementById('geoPb'),
+        bar=pb.querySelector('i'), btn=document.getElementById('geoToggle');
+  const cached=ALL.filter(r=>r.prec&&r.prec!=='cidade').length;
+  if(geo.running){
+    pb.style.display='block'; bar.style.width=(geo.total?Math.round(geo.idx/geo.total*100):0)+'%';
+    txt.textContent=`Localizando ${geo.idx}/${geo.total}…`;
+    btn.textContent='Pausar'; btn.className='pause';
+  }else{
+    pb.style.display=geo.idx>0&&geo.idx<geo.total?'block':'none';
+    const tb=refinementTargetBairros();
+    const scope = tb ? ` · ${tb.size} bairro(s) no filtro` : '';
+    if(geo.err){txt.textContent='Falha de rede no geocodificador. Tente novamente.';}
+    else if(cached>0){txt.textContent=`${cached} imóveis localizados pelo endereço${scope}`;}
+    else{txt.textContent=`Pinos aproximados (cidade)${scope}`;}
+    const remaining=pendingForRefinement().length;
+    btn.textContent=remaining? (geo.idx>0?'▶ Continuar':`📍 Corrigir endereços${tb?' (filtro)':''}`) : '✓ Tudo localizado';
+    btn.className=''; btn.disabled=remaining===0;
+  }
+}
+async function geoStep(){
+  if(!geo.running) return;
+  if(geo.idx>=geo.queue.length){ geo.running=false; saveGeoCache(); renderMarkers(); updateGeoBar(); return; }
+  const id=geo.queue[geo.idx++]; const r=ALL.find(x=>x.id===id);
+  try{
+    const res=await geocodeOne(r);
+    if(res){ r.lat=res.lat; r.lon=res.lon; r.prec=res.prec; GEO_CACHE[id]={lat:res.lat,lon:res.lon,prec:res.prec}; }
+    else { GEO_CACHE[id]={lat:r.lat,lon:r.lon,prec:'cidade'}; }   // não reprocessa indefinidamente
+  }catch(e){ geo.running=false; geo.err=true; saveGeoCache(); updateGeoBar(); return; }
+  geo.done++;
+  if(geo.done%8===0){ saveGeoCache(); renderMarkers(); }
+  updateGeoBar();
+  setTimeout(geoStep, 1100);   // respeita o limite de ~1 req/s do Nominatim
+}
+document.getElementById('geoToggle').onclick=()=>{
+  if(geo.running){ geo.running=false; updateGeoBar(); return; }
+  if(geo.idx>=geo.queue.length || geo.queue.length===0) buildGeoQueue();
+  if(geo.queue.length===0){ updateGeoBar(); return; }
+  geo.running=true; geo.err=false; updateGeoBar(); geoStep();
+};
+
+// ---------------- init ----------------
+loadGeoCache(); applyGeoCache();
+loadState();
+refresh();
+updateGeoBar();
+</script>
+</body>
+</html>

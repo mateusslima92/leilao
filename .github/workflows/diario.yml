@@ -1,0 +1,108 @@
+name: Leilão PB — rotina diária
+
+on:
+  schedule:
+    # 10:00 UTC = 07:00 horário de Brasília (BRT, UTC-3).
+    # O GitHub pode atrasar alguns minutos em horário de pico — é normal.
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}   # botão "Run workflow" para rodar na hora
+
+# Evita duas execuções simultâneas (ex.: cron + clique manual)
+concurrency:
+  group: leilao-diario
+  cancel-in-progress: false
+
+permissions:
+  contents: write      # para commitar o estado de volta no repo
+  pages: write         # para publicar o painel no GitHub Pages
+  id-token: write      # exigido pelo deploy do Pages
+
+jobs:
+  rotina:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Montar credenciais do Z-API (a partir dos Secrets)
+        env:
+          ZAPI_INSTANCE_ID: ${{ secrets.ZAPI_INSTANCE_ID }}
+          ZAPI_TOKEN: ${{ secrets.ZAPI_TOKEN }}
+          ZAPI_CLIENT_TOKEN: ${{ secrets.ZAPI_CLIENT_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          json.dump({
+              "instance_id": os.environ.get("ZAPI_INSTANCE_ID", ""),
+              "token": os.environ.get("ZAPI_TOKEN", ""),
+              "client_token": os.environ.get("ZAPI_CLIENT_TOKEN", ""),
+          }, open("whatsapp_secrets.json", "w"))
+          PY
+
+      - name: 1/4 — Baixar CSV da Caixa (best-effort)
+        continue-on-error: true   # se a Caixa bloquear, segue com o último CSV bom do repo
+        run: bash baixar_csv.sh
+
+      - name: 2/4 — Analisar + aplicar alarmes + montar fila
+        env:
+          LEILAO_RECIPIENTS: ${{ secrets.LEILAO_RECIPIENTS }}
+        run: python3 leilao_routine.py prepare
+
+      - name: 3/4 — Enviar WhatsApp (idempotente)
+        continue-on-error: true
+        run: python3 whatsapp_sender.py
+
+      - name: 4/4 — Fixar baseline (novos de hoje != novos amanhã)
+        run: python3 leilao_routine.py commit
+
+      - name: Limpar credenciais e podar CSVs antigos (mantém os 3 mais novos)
+        run: |
+          rm -f whatsapp_secrets.json
+          ls -1t "planilhas leilao"/Lista_imoveis_PB*.csv 2>/dev/null | tail -n +4 | xargs -r rm -f
+
+      - name: Commit do estado de volta no repo
+        id: commit
+        run: |
+          git config user.name "leilao-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add leilao_state.json imoveis.json dashboard_leilao.html \
+                  validate_queue.json last_summary.json whatsapp_outbox.json \
+                  whatsapp_sent.json "planilhas leilao" 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Nada mudou — nada a commitar."
+          else
+            git commit -m "rotina diária $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Preparar painel para o GitHub Pages
+        run: |
+          mkdir -p _site
+          cp dashboard_leilao.html _site/index.html
+
+      - name: Upload do artefato do Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  publicar-painel:
+    needs: rotina
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy no GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

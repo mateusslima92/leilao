@@ -1,0 +1,13 @@
+# Segredos — NUNCA versionar
+whatsapp_secrets.json
+recipients.secret.json
+
+# macOS / logs / cache
+.DS_Store
+__pycache__/
+*.pyc
+launchd.log
+rodar_diario.log
+
+# cookies temporários do download
+leilao_cookies.*
