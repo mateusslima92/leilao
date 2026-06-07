@@ -49,6 +49,31 @@ is_valid_csv() {
   return 0
 }
 
+# --- Tentativa 0: API de scraping com IP residencial (passa pelo Radware) ---
+# Em IP de datacenter (GitHub Actions) o download direto é bloqueado por CAPTCHA.
+# Quando SCRAPERAPI_KEY existe (Secret), roteamos por um IP residencial brasileiro.
+# A ScraperAPI só cobra requisições bem-sucedidas (retorno 200), então falha não gasta.
+# Escape hatch: defina a Variable SCRAPERAPI_ULTRA=true para usar proxies "ultra".
+if [ -n "${SCRAPERAPI_KEY:-}" ]; then
+  premium_param="premium=true"
+  [ "${SCRAPERAPI_ULTRA:-}" = "true" ] && premium_param="ultra_premium=true"
+  echo "[$(ts)] Tentando via ScraperAPI ($premium_param, country_code=br)…"
+  curl -fsS --connect-timeout 30 --max-time 180 \
+       -G "https://api.scraperapi.com/" \
+       --data-urlencode "api_key=${SCRAPERAPI_KEY}" \
+       --data-urlencode "url=${URL}" \
+       --data-urlencode "$premium_param" \
+       --data-urlencode "country_code=br" \
+       -o "$OUT" 2>/dev/null || true
+  if is_valid_csv "$OUT"; then
+    SZ=$(stat -f%z "$OUT" 2>/dev/null || stat -c%s "$OUT" 2>/dev/null || echo 0)
+    echo "[$(ts)] OK via ScraperAPI: $OUT (${SZ} bytes)"
+    exit 0
+  fi
+  echo "[$(ts)] ScraperAPI não trouxe CSV válido — caindo para o download direto…"
+  rm -f "$OUT"
+fi
+
 echo "[$(ts)] Baixando $URL"
 
 # Conjunto de headers de navegador real (Chrome no macOS) — ajuda a passar pelo Radware.

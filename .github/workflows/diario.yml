@@ -49,9 +49,18 @@ jobs:
           }, open("whatsapp_secrets.json", "w"))
           PY
 
-      - name: 1/4 — Baixar CSV da Caixa (best-effort)
-        continue-on-error: true   # se a Caixa bloquear, segue com o último CSV bom do repo
-        run: bash baixar_csv.sh
+      - name: 1/4 — Baixar CSV da Caixa (IP residencial, fallback direto)
+        id: download
+        env:
+          SCRAPERAPI_KEY: ${{ secrets.SCRAPERAPI_KEY }}
+          SCRAPERAPI_ULTRA: ${{ vars.SCRAPERAPI_ULTRA }}
+        run: |
+          # Não derruba o job se falhar: registramos 'fresh' e seguimos com o último CSV bom.
+          if bash baixar_csv.sh; then
+            echo "fresh=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: 2/4 — Analisar + aplicar alarmes + montar fila
         env:
@@ -96,8 +105,18 @@ jobs:
         with:
           path: _site
 
+      # ÚLTIMO passo de propósito: tudo acima já rodou e foi publicado com o último
+      # CSV bom. Se hoje NÃO veio CSV novo, falhamos o job aqui só para o GitHub te
+      # mandar o e-mail de "workflow failed". Sem dados frescos, o app não cumpre o papel.
+      - name: Avisar por e-mail se o CSV não atualizou hoje
+        if: steps.download.outputs.fresh != 'true'
+        run: |
+          echo "::error title=CSV nao atualizou::A Caixa bloqueou o download hoje (rodei com o ultimo CSV bom). Verifique o Secret SCRAPERAPI_KEY ou ative a Variable SCRAPERAPI_ULTRA=true."
+          exit 1
+
   publicar-painel:
     needs: rotina
+    if: ${{ !cancelled() }}   # publica o painel mesmo se a rotina sinalizou CSV velho
     runs-on: ubuntu-latest
     environment:
       name: github-pages

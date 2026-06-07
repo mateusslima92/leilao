@@ -39,6 +39,11 @@ Crie **quatro**:
 | `ZAPI_TOKEN` | campo `token` |
 | `ZAPI_CLIENT_TOKEN` | campo `client_token` (Token de Segurança da Conta, aba Security do Z-API) |
 | `LEILAO_RECIPIENTS` | conteúdo **inteiro** do arquivo `recipients.secret.json` |
+| `SCRAPERAPI_KEY` | API key da sua conta gratuita em https://www.scraperapi.com (baixa o CSV via IP residencial; sem ela, a Caixa bloqueia o download na nuvem) |
+
+> Se mesmo com a `SCRAPERAPI_KEY` a Caixa bloquear, crie a **Variable** (não Secret)
+> `SCRAPERAPI_ULTRA` = `true` em *Settings → Secrets and variables → Actions → Variables*,
+> que liga proxies mais fortes (gasta mais créditos).
 
 O `LEILAO_RECIPIENTS` é um JSON neste formato (use o conteúdo real do seu
 `recipients.secret.json`, que já foi gerado com seus destinatários atuais):
@@ -73,6 +78,13 @@ Daí em diante roda sozinho todo dia, com o computador ligado ou não.
   `leilao_state.json` atualizado (`git add leilao_state.json && git commit && git push`).
   Lembre de deixar `recipients` vazio nele — quem manda nos telefones é o Secret.
 - **Horário:** mude o `cron` em `.github/workflows/diario.yml` (está em UTC; 07h BRT = `0 10 * * *`).
+
+## Aviso por e-mail quando falhar
+
+O workflow **falha de propósito** (depois de rodar tudo com o último CSV bom) quando a
+Caixa não devolve um CSV novo no dia. Isso dispara o e-mail nativo do GitHub. Para receber:
+em **github.com → Settings → Notifications → Actions**, marque **Email** e
+*"Only notify for failed workflows"*. O e-mail vai para o endereço da sua conta.
 
 ## Importante
 
